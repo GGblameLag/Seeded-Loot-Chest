@@ -15,7 +15,7 @@ export async function showCurrentPositionMenu(player) {
         .title("Spawn Loot Chest")
         .toggle("Random Seed", { default: true })
         .textField(`Specific Seed\n(${MIN_SEED} to ${MAX_SEED})`, "Enter seed...")
-        .slider("Loot Amount", 3, 9, 1, 5);
+        .slider("Loot Amount", 3, 9, 1);
 
     const response = await form.show(player);
 
