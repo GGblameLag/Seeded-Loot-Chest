@@ -10,9 +10,11 @@ export function generateLoot(seed, amount) {
     for (let i = 0; i < amount; i++) {
         const rarity = selectRarity(rng);
 
-        // Filter candidates by rarity NAME (without color codes)
         // Extract the plain rarity name from the colored string (e.g., "§eCommon§r" -> "Common")
-        const rarityName = rarity.name.replace(/§[a-z0-9]/g, "").replace(/§r/g, "").trim();
+        const rarityName = rarity.name
+            .replace(/§[a-z0-9]/g, "")
+            .replace(/§r/g, "")
+            .trim();
 
         const candidates = LOOT_TABLE.filter(
             item => item.rarity === rarityName
@@ -23,9 +25,20 @@ export function generateLoot(seed, amount) {
             continue;
         }
 
-        const itemData = candidates[rng.nextInt(0, candidates.length - 1)];
+        const itemData = candidates[
+            rng.nextInt(
+                0,
+                candidates.length - 1
+            )
+        ];
 
-        loot.push(generateItem(itemData, rng, seed));
+        loot.push(
+            generateItem(
+                itemData,
+                rng,
+                seed
+            )
+        );
     }
 
     return loot;

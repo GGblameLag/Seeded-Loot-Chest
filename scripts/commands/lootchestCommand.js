@@ -1,124 +1,66 @@
-import { world } from "@minecraft/server";
-import { spawnChest } from "../loot/generateLoot.js";
-import { generateRandomSeed, parseSeed, MIN_SEED, MAX_SEED } from "../util/seedGenerator.js";
+import { system, CommandPermissionLevel, CustomCommandStatus, Player } from "@minecraft/server";
+import { spawnChest } from "../chest/spawnChest.js";
+import { generateRandomSeed } from "../util/seedGenerator.js";
 import { showMainMenu } from "../ui/mainMenu.js";
 
 export function registerLootChestCommand() {
-    world.beforeEvents.chatSend.subscribe((event) => {
-        const message = event.message.trim();
+    system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
         
-        if (!message.startsWith("/lootchest")) {
-            return;
-        }
+        // /lootchest:spawn - spawn at current location with random seed, 9 items
+        customCommandRegistry.registerCommand({
+            name: "lootchest:spawn",
+            description: "Spawn a loot chest at your current location",
+            permissionLevel: CommandPermissionLevel.Any
+        }, (origin) => {
+            if (!(origin.sourceEntity instanceof Player)) {
+                return {
+                    status: CustomCommandStatus.Failure,
+                    message: "This command can only be run by a player."
+                };
+            }
 
-        const player = event.sender;
-        const parts = message.split(/\s+/);
-        const command = parts[0];
-        const subcommand = parts[1];
-
-        // /lootchest
-        if (!subcommand) {
+            const player = origin.sourceEntity;
             const seed = generateRandomSeed();
-            spawnChest(player, player.location, seed, 9);
-            player.sendMessage(`§aLoot chest spawned at your location with seed ${seed} and 9 items.`);
-            event.cancel = true;
-            return;
-        }
+            
+            system.run(() => {
+                spawnChest(player, player.location, seed, 9);
+            });
 
-        // /lootchest here [seed] [amount]
-        if (subcommand === "here") {
-            const seedArg = parts[2];
-            const amountArg = parts[3];
+            return {
+                status: CustomCommandStatus.Success,
+                message: `Loot chest spawned with seed ${seed} and 9 items.`
+            };
+        });
 
-            let seed;
-            if (seedArg !== undefined) {
-                seed = parseSeed(seedArg);
-                if (seed === null) {
-                    player.sendMessage(`§cInvalid seed. Please enter a number between ${MIN_SEED} and ${MAX_SEED}.`);
-                    event.cancel = true;
-                    return;
+        // /lootchest:menu - open the UI menu
+        customCommandRegistry.registerCommand({
+            name: "lootchest:menu",
+            description: "Open the loot chest menu",
+            permissionLevel: CommandPermissionLevel.Any
+        }, (origin) => {
+            if (!(origin.sourceEntity instanceof Player)) {
+                return {
+                    status: CustomCommandStatus.Failure,
+                    message: "This command can only be run by a player."
+                };
+            }
+
+            const player = origin.sourceEntity;
+            
+            system.run(() => {
+                try {
+                    showMainMenu(player);
+                } catch (error) {
+                    console.error("[LootChest] Menu error:", error);
+                    player.sendMessage("§cFailed to open Loot Chest menu.");
                 }
-            } else {
-                seed = generateRandomSeed();
-            }
+            });
 
-            let amount = 9;
-            if (amountArg !== undefined) {
-                amount = Number(amountArg);
-                if (Number.isNaN(amount) || amount < 1 || amount > 64) {
-                    player.sendMessage("§cInvalid amount. Please enter a number between 1 and 64.");
-                    event.cancel = true;
-                    return;
-                }
-            }
+            return {
+                status: CustomCommandStatus.Success
+            };
+        });
 
-            spawnChest(player, player.location, seed, amount);
-            player.sendMessage(`§aLoot chest spawned at your location with seed ${seed} and ${amount} items.`);
-            event.cancel = true;
-            return;
-        }
-
-        // /lootchest at <x> <y> <z> [seed] [amount]
-        if (subcommand === "at") {
-            const xArg = parts[2];
-            const yArg = parts[3];
-            const zArg = parts[4];
-            const seedArg = parts[5];
-            const amountArg = parts[6];
-
-            if (xArg === undefined || yArg === undefined || zArg === undefined) {
-                player.sendMessage("§cUsage: /lootchest at <x> <y> <z> [seed] [amount]");
-                event.cancel = true;
-                return;
-            }
-
-            const x = Number(xArg);
-            const y = Number(yArg);
-            const z = Number(zArg);
-
-            if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
-                player.sendMessage("§cInvalid coordinates. Please enter valid numbers.");
-                event.cancel = true;
-                return;
-            }
-
-            let seed;
-            if (seedArg !== undefined) {
-                seed = parseSeed(seedArg);
-                if (seed === null) {
-                    player.sendMessage(`§cInvalid seed. Please enter a number between ${MIN_SEED} and ${MAX_SEED}.`);
-                    event.cancel = true;
-                    return;
-                }
-            } else {
-                seed = generateRandomSeed();
-            }
-
-            let amount = 9;
-            if (amountArg !== undefined) {
-                amount = Number(amountArg);
-                if (Number.isNaN(amount) || amount < 1 || amount > 64) {
-                    player.sendMessage("§cInvalid amount. Please enter a number between 1 and 64.");
-                    event.cancel = true;
-                    return;
-                }
-            }
-
-            spawnChest(player, { x, y, z }, seed, amount);
-            player.sendMessage(`§aLoot chest spawned at ${x}, ${y}, ${z} with seed ${seed} and ${amount} items.`);
-            event.cancel = true;
-            return;
-        }
-
-        // /lootchest menu
-        if (subcommand === "menu") {
-            showMainMenu(player);
-            event.cancel = true;
-            return;
-        }
-
-        // Unknown subcommand
-        player.sendMessage("§cUnknown subcommand. Usage: /lootchest [here|at|menu] [arguments]");
-        event.cancel = true;
+        console.warn("[LootChest] Custom commands registered successfully.");
     });
 }
